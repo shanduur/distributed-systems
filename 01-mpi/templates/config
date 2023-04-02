@@ -1,0 +1,12 @@
+Host *
+    StrictHostKeyChecking no
+
+Host follower-1
+    HostName follower-1
+    User vagrant
+    Port 50222
+
+Host follower-2
+    HostName follower-2
+    User vagrant
+    Port 50223

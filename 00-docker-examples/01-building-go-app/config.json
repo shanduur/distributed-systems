@@ -1,0 +1,7 @@
+{
+    "message": "Hello %v %v\n",
+    "args": [
+        "World!",
+        "🌍"
+    ]
+}

@@ -1,0 +1,62 @@
+version: '3.9'
+
+services:
+  leader:
+    image: localhost/mpi
+    expose:
+      - 22
+      - 2049
+    networks:
+      - mpi
+    build:
+      context: .
+      dockerfile: Dockerfile
+    tty: true
+    environment:
+      - LEADER=1
+    privileged: true
+    volumes:
+      - nfs_share:/shared
+      - ./build:/build
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: 500m
+          memory: 512Mi
+        reservations:
+          cpus: 250m
+          memory: 512Mi
+
+  follower:
+    image: localhost/mpi
+    depends_on:
+      - leader
+    expose:
+      - 22
+    networks:
+      - mpi
+    tty: true
+    environment:
+      - FOLLOWER=1
+    privileged: true
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: 500m
+          memory: 512M
+        reservations:
+          cpus: 250m
+          memory: 512Mi
+
+networks:
+  mpi:
+    name: mpi
+
+volumes:
+  nfs_share:

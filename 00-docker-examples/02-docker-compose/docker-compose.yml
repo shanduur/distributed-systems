@@ -1,0 +1,20 @@
+version: '3.9'
+
+services:
+  example:
+    image: localhost/example
+    restart: on_failure
+    build: # Build the image from the Dockerfile in the current directory
+      context: .
+      dockerfile: Dockerfile
+    deploy: # Deploy the service
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: 500m
+          memory: 512M
+        reservations:
+          cpus: 250m
+          memory: 512M

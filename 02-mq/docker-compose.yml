@@ -1,0 +1,123 @@
+version: '3.9'
+
+services:
+  # Message Processor Service - Consumes messages from MQ, processes them and sends them back to MQ
+  message-processor:
+    image: localhost/message-processor
+    networks: # Connect to the MQ network
+      - mq
+    build: # Build the image from the message-processor-service directory
+      context: message-processor-service
+      dockerfile: Dockerfile
+    deploy: # Deploy the service
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: 500m
+          memory: 512M
+        reservations:
+          cpus: 250m
+          memory: 512M
+
+  message-sender: # Message Sender Service - Sends messages to MQ
+    image: localhost/message-sender
+    restart: on_failure
+    networks: # Connect to the MQ network
+      - mq
+    build: # Build the image from the message-sender-service directory
+      context: message-sender-service
+      dockerfile: Dockerfile
+    deploy: # Deploy the service
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: 500m
+          memory: 512M
+        reservations:
+          cpus: 250m
+          memory: 512M
+
+  message-storage: # Message Storage Service - Stores messages in a database
+    image: localhost/message-storage
+    restart: on_failure
+    networks: # Connect to the MQ and database networks
+      - mq
+      - database
+    build: # Build the image from the message-storage-service directory
+      context: message-storage-service
+      dockerfile: Dockerfile
+    deploy: # Deploy the service
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: 500m
+          memory: 512M
+        reservations:
+          cpus: 250m
+          memory: 512M
+
+  mq: # Message Queue - Used to send messages between services
+    # NOTE: I have selected the NATS image from Docker Hub, but you can use any image you want.
+    #   For example, you can use:
+    #     - docker.io/library/rabbitmq:3-alpine
+    #     - docker.io/library/eclipse-mosquitto:2
+    #     - docker.io/bitnami/kafka:3
+    #   Just make sure to update the ports and environment variables accordingly.
+    image: docker.io/library/nats:2.9-alpine
+    expose:
+      - 4222
+      - 6222
+      - 8222
+    networks: # Connect to the MQ network
+      - mq
+    deploy: # Deploy the service
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: 500m
+          memory: 1G
+        reservations:
+          cpus: 250m
+          memory: 1G
+
+  database: # Database - Used to store messages
+    # NOTE: We are using the postgres image from Docker Hub, but you can use any image you want.
+    #   For example, you can use:
+    #     - docker.io/library/mysql:8
+    #     - docker.io/library/mariadb:10
+    #     - docker.io/library/mongo:6
+    #   Just make sure to update the ports and environment variables accordingly.
+    image: docker.io/library/postgres:15-alpine
+    expose:
+      - 5432
+    networks:
+      - database
+    environment:
+      POSTGRES_USER: postgres # username for postgres
+      POSTGRES_PASSWORD: postgres # password for postgres
+      POSTGRES_DB: postgres # database name for postgres
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: 500m
+          memory: 1G
+        reservations:
+          cpus: 250m
+          memory: 1G
+
+networks:
+  mq:
+    name: mq
+  database:
+    name: database

@@ -1,0 +1,65 @@
+# Tells us if the host system is an Apple Silicon Mac running Rosetta
+def running_rosetta()
+    if Vagrant::Util::Platform.windows? then
+        return false
+    elsif Vagrant::Util::Platform.linux? then
+        return false
+    elsif Vagrant::Util::Platform.darwin? then
+        return !`sysctl -in sysctl.proc_translated`.strip().to_i.zero?
+    else
+        fail 'Unsupported platform'
+    end
+end
+
+def arch()
+    if Vagrant::Util::Platform.windows? then
+        return 'x86_64'
+    elsif Vagrant::Util::Platform.linux? or Vagrant::Util::Platform.darwin? then
+        return `uname -m`.strip()
+    else
+        fail 'Unsupported platform'
+    end
+end
+
+Vagrant.configure("2") do |config|
+    arch = arch()
+    if arch == 'arm64' || arch == 'aarch64' || (arch == 'i386' && running_rosetta())
+        image = 'perk/ubuntu-2204-arm64'
+        arch = 'aarch64'
+        cpu = 'cortex-a72'
+    else
+        image = 'generic/ubuntu2204'
+        arch = 'x86_64'
+        cpu = 'kvm64'
+    end
+
+    config.vm.provider "qemu" do |qe|
+        qe.arch = arch
+        qe.cpu = cpu
+        qe.memory = '2G'
+        qe.cores = 2
+    end
+
+    config.vm.provider "virtualbox" do |vb|
+        vb.memory = 2048
+        vb.cpus = 2
+    end
+
+    # set the box to use
+    config.vm.box = image
+
+    # copy ssh files to the VM
+    config.vm.provision "file", source: "templates/config", destination: "/home/vagrant/.ssh/config"
+    config.vm.provision "file", source: "templates/id_rsa", destination: "/home/vagrant/.ssh/id_rsa"
+    config.vm.provision "file", source: "templates/id_rsa.pub", destination: "/home/vagrant/.ssh/id_rsa.pub"
+
+    # do not modify this file - it includes default required software
+    config.vm.provision "shell", path: "scripts/install.sh"
+
+    # modify this file, to add extra programs into the environment
+    config.vm.provision "shell", path: "scripts/user-install.sh"
+
+    # we want to mount workspace to the VM
+    # NOTE: we need to issue `vagrant rsync-auto` to make it work
+    config.vm.synced_folder "workspace/", "/home/vagrant/workspace", type: "rsync"
+end
